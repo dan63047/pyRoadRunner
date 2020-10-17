@@ -6,5 +6,3 @@ That game is very simple - drive forward and drive how far as you can. Your fuel
 - **ESCAPE** - exit
 ***
 Game by [dan63047](https://t.me/dan63047)
-
-h
