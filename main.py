@@ -47,6 +47,15 @@ class EnemyCar:
         self.y = 0
 
 
+class EnemyOnStart(EnemyCar):
+    def __init__(self, x=None, odo=None):
+        super().__init__(x, odo)
+        self.speed = 600
+        self.size = [20, 40]
+        self.color = (0, 0, 255)
+        self.y = 0
+
+
 class Canister:
     def __init__(self, x=None, m=None, v=None):
         if x is None:
@@ -82,7 +91,9 @@ player = Player()
 respawn_sec = 3
 frames_until_respawn = FRAMERATE*respawn_sec
 enemy = [EnemyCar(random.randint(road.left, road.right+EnemyCar().size[0]), random.randint(0, 150)/100, random.randint(100, 350)) for i in range(150)]
-b = [Canister(random.randint(road.left, road.right), random.randint(0, 200)/100, random.randint(5, 15)) for i in range(3)]
+enemy.append(EnemyOnStart())
+bonuses = [Canister(random.randint(road.left, road.right), random.randint(0, 200)/100, random.randint(5, 15)) for i in range(3)]
+print(type(EnemyOnStart()))
 
 
 def draw():
@@ -98,12 +109,12 @@ def draw():
         if WIN_SIZE_Y > enemy_y > -50:
             rendered += 1
             pygame.draw.rect(win, e.color, ([e.x, enemy_y], e.size))
-    for v in b:
-        bonus_y = (-v.road_milestone*scale + player.odometer*scale)+center_y
-        v.y = bonus_y
+    for b in bonuses:
+        bonus_y = (-b.road_milestone*scale + player.odometer*scale)+center_y
+        b.y = bonus_y
         if WIN_SIZE_Y > bonus_y > -50:
             rendered += 1
-            pygame.draw.circle(win, (0, 255, 0), (v.x, int(v.y)), 5)
+            pygame.draw.circle(win, (0, 255, 0), (b.x, int(b.y)), 5)
     if player.fuel > 20:
         fuel_color = (255, 255, 255)
     else:
@@ -115,6 +126,7 @@ def draw():
     win.blit(small_hat_font.render(f"p x: {player.coords[0]}; y: {player.coords[1]}", 1, (255, 255, 255)), (0, 25))
     win.blit(small_hat_font.render(str(clock), 1, (255, 255, 255)), (0, 15))
     win.blit(small_hat_font.render(f"rendered: {rendered}", 1, (255, 255, 255)), (0, 35))
+    win.blit(small_hat_font.render(f"enemys: {len(enemy)}", 1, (255, 255, 255)), (0, 45))
     pygame.display.update()
 
 
@@ -147,21 +159,24 @@ while not EXIT:
         e.odometer += (e.speed/3600)/FRAMERATE
         if e.x-player.size[0] < player.coords[0] < e.x+e.size[0] and e.y-player.size[1] < player.coords[1] < e.y+e.size[1]:
             player.destroyed = True
-        if e.y > WIN_SIZE_Y+200:
-            e.odometer += random.randint(5, 15)/10
-            e.speed = random.randint(100, 350)
-            e.x = random.randint(road.left, road.right+EnemyCar().size[0])
+        if WIN_SIZE_Y+200 < e.y:
+            if isinstance(e, EnemyOnStart):
+                enemy.remove(e)
+            else:
+                e.odometer += random.randint(5, 15)/10
+                e.speed = random.randint(100, 350)
+                e.x = random.randint(road.left, road.right+EnemyCar().size[0])
 
-    for v in b:
-        if v.x-player.size[0] < player.coords[0] < v.x+player.size[0] and v.y-player.size[1] < player.coords[1] < v.y+player.size[1]:
+    for b in bonuses:
+        if b.x-player.size[0] < player.coords[0] < b.x+player.size[0] and b.y-player.size[1] < player.coords[1] < b.y+player.size[1]:
             player.fuel += 15
             player.engine_on = True
             player.score += 500
-            v.road_milestone += random.randint(5, 20)/10
-            v.x = random.randint(road.left, road.right)
-        if v.y > WIN_SIZE_Y+200:
-            v.road_milestone += random.randint(5, 20)/10
-            v.x = random.randint(road.left, road.right)
+            b.road_milestone += random.randint(5, 20)/10
+            b.x = random.randint(road.left, road.right)
+        if WIN_SIZE_Y+200 < b.y:
+            b.road_milestone += random.randint(5, 20)/10
+            b.x = random.randint(road.left, road.right)
 
     if player.destroyed:
         player.speed = 0
