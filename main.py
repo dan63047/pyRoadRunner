@@ -6,8 +6,29 @@ WIN_SIZE_Y = 800
 FRAMERATE = 60
 
 
-class Player:
+class GameObject:
+    def __init__(self, **args):
+        if 'size' not in args:
+            self.size = [20, 40]
+        else:
+            self.size = args['size']
+        if 'x' not in args:
+            self.x = 100
+        else:
+            self.x = args['x']
+        if 'y' not in args:
+            self.y = 100
+        else:
+            self.y = args['y']
+        if 'texture' not in args:
+            self.texture = pygame.image.load("textures/Player.png")
+        else:
+            self.texture = pygame.image.load(args['texture'])
+
+
+class Player(GameObject):
     def __init__(self):
+        super().__init__(size=[32, 64], x=200, y=500, texture="textures/Player.png")
         self.fuel = 100
         self.screen_speed = 3
         self.odometer = 0
@@ -15,22 +36,18 @@ class Player:
         self.stable = True
         self.destroyed = False
         self.color = (255, 0, 0)
-        self.size = [20, 40]
-        self.coords = [200, 500]
         self.consumption = 1.5
         self.score = 0
 
-    def get_currect_color(self):
-        if self.destroyed:
-            return self.color[0] / 6, self.color[1] / 6, self.color[2] / 6
-        else:
-            return self.color
-
     def draw(self):
-        pygame.draw.rect(win, self.get_currect_color(), (player.coords, player.size))
+        if self.destroyed:
+            pygame.draw.rect(win, (43, 0, 0), (self.x, self.y, self.size[0], self.size[1]))
+        else:
+            win.blit(self.texture, (self.x, self.y))
 
     def respawn(self):
-        self.coords = [200, 500]
+        self.x = 200
+        self.y = 500
         self.fuel -= 5
         self.score -= 200
 
@@ -43,12 +60,11 @@ class Player:
             return True
 
 
-class EnemyCar:
-    def __init__(self, x=None, odo=None, spd=None):
+class EnemyCar(GameObject):
+    def __init__(self, x=None, odo=None, spd=None, **args):
         if x is None:
-            self.x = 210
-        else:
-            self.x = x
+            x = 210
+        super().__init__(x=x, y=0, size=[32, 64], texture="textures/EnemyCar.png")
         if odo is None:
             self.odometer = 0
         else:
@@ -57,17 +73,16 @@ class EnemyCar:
             self.speed = 0
         else:
             self.speed = spd
-        self.size = [20, 40]
         self.color = (100, 100, 100)
         self.y = 0
 
     def draw(self):
         self.y = (-self.odometer * road.get_scale() + player.odometer * road.get_scale()) + WIN_SIZE_Y / 2
         if WIN_SIZE_Y > self.y > -50:
-            pygame.draw.rect(win, self.color, ([self.x, self.y], self.size))
+            win.blit(self.texture, (self.x, self.y))
 
     def collision_with_player(self):
-        if self.x - player.size[0] < player.coords[0] < self.x + self.size[0] and self.y - player.size[1] < player.coords[1] < self.y + self.size[1]:
+        if self.x - player.size[0] < player.x < self.x + self.size[0] and self.y - player.size[1] < player.y < self.y + self.size[1]:
             return True
         else:
             return False
@@ -87,12 +102,11 @@ class EnemyOnStart(EnemyCar):
         self.y = 0
 
 
-class Canister:
+class Canister(GameObject):
     def __init__(self, x=None, m=None, v=None):
         if x is None:
-            self.x = 210
-        else:
-            self.x = x
+            x = 210
+        super().__init__(x=x, y=0)
         if m is None:
             self.road_milestone = 0.50
         else:
@@ -101,7 +115,6 @@ class Canister:
             self.volume = 15
         else:
             self.volume = v
-        self.y = 0
 
     def draw(self):
         self.y = (-self.road_milestone * road.get_scale() + player.odometer * road.get_scale()) + WIN_SIZE_Y / 2
@@ -113,7 +126,7 @@ class Canister:
         self.x = random.randint(road.left, road.right)
 
     def collision_with_player(self):
-        if self.x - player.size[0] < player.coords[0] < self.x + player.size[0] and self.y - player.size[1] < player.coords[1] < self.y + player.size[1]:
+        if self.x - player.size[0] < player.x < self.x + player.size[0] and self.y - player.size[1] < player.y < self.y + player.size[1]:
             return True
         else:
             return False
@@ -162,7 +175,7 @@ def draw():
     win.blit(hat_font.render(f"FUEL: {player.fuel:.{0}f}", 1, fuel_color), (400, WIN_SIZE_Y-50))
     win.blit(hat_font.render(f"SPD: {player.speed:.{0}f} km/h", 1, (255, 255, 255)), (400, WIN_SIZE_Y-75))
     win.blit(hat_font.render(f"ODO: {player.odometer:.{2}f} km", 1, (255, 255, 255)), (400, WIN_SIZE_Y-100))
-    win.blit(small_hat_font.render(f"p x: {player.coords[0]}; y: {player.coords[1]}", 1, (255, 255, 255)), (0, 25))
+    win.blit(small_hat_font.render(f"p x: {player.x}; y: {player.y}", 1, (255, 255, 255)), (0, 25))
     win.blit(small_hat_font.render(str(clock), 1, (255, 255, 255)), (0, 15))
     win.blit(small_hat_font.render(f"enemys: {len(enemy)}", 1, (255, 255, 255)), (0, 35))
     pygame.display.update()
@@ -183,27 +196,26 @@ def gameplay_loop():
             end = True
 
         accelerating = False
-        if not player.destroyed:
+        if player.speed > 0 and not player.destroyed:
+            if keys[pygame.K_LEFT] and player.x-player.screen_speed > road.left:
+                player.x -= player.screen_speed
+            if keys[pygame.K_RIGHT] and player.x+player.screen_speed < road.left+road.right-player.size[0]:
+                player.x += player.screen_speed
+        if player.is_engine_on() and not player.destroyed:
+            if keys[pygame.K_UP] and player.y - player.screen_speed > 0:
+                player.y -= player.screen_speed
+            if keys[pygame.K_DOWN] and player.y + player.screen_speed < WIN_SIZE_Y - player.size[1]:
+                player.y += player.screen_speed
+            if keys[pygame.K_SPACE]:
+                accelerating = True
+        if accelerating and not player.destroyed:
+            if player.speed < 400:
+                player.speed += 3
+        else:
             if player.speed > 0:
-                if keys[pygame.K_LEFT] and player.coords[0]-player.screen_speed > road.left:
-                    player.coords[0] -= player.screen_speed
-                if keys[pygame.K_RIGHT] and player.coords[0]+player.screen_speed < road.left+road.right-player.size[0]:
-                    player.coords[0] += player.screen_speed
-            if player.is_engine_on():
-                if keys[pygame.K_UP] and player.coords[1] - player.screen_speed > 0 and not player.destroyed:
-                    player.coords[1] -= player.screen_speed
-                if keys[pygame.K_DOWN] and player.coords[1] + player.screen_speed < WIN_SIZE_Y - player.size[1] and not player.destroyed:
-                    player.coords[1] += player.screen_speed
-                if keys[pygame.K_SPACE]:
-                    accelerating = True
-            if accelerating:
-                if player.speed < 400:
-                    player.speed += 3
-            else:
-                if player.speed > 0:
-                    player.speed -= 3
-            player.odometer += (player.speed/3600)/FRAMERATE
-            player.score += player.speed/(FRAMERATE*10)
+                player.speed -= 3
+        player.odometer += (player.speed/3600)/FRAMERATE
+        player.score += player.speed/(FRAMERATE*10)
 
         for e in enemy:
             e.odometer += (e.speed/3600)/FRAMERATE
